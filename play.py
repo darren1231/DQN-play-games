@@ -13,13 +13,14 @@ import sys
 import datetime
 sys.path.append("Wrapped Game Code/")
 import pong_fun as game# whichever is imported "as game" will be used
-import tetris_fun
+#import tetris_fun
 import random
 import numpy as np
 import os
 from collections import deque
 
 import brain as net
+import environment as env
 
 GAME = 'pong' # the name of the game being played for log files
 ACTIONS = 3 # number of valid actions
@@ -62,43 +63,7 @@ def sencond2time(senconds):
 		return "[InModuleError]:sencond2time(senconds) invalid argument type"
 
     
-    
-
-def trainNetwork(s, readout,sess,merged,writer):
-
-    
-    # define the cost function
-    a = tf.placeholder("float", [None, ACTIONS])
-    y = tf.placeholder("float", [None])
-    readout_action = tf.reduce_sum(tf.mul(readout, a), reduction_indices = 1)
-    cost = tf.reduce_mean(tf.square(y - readout_action))
-    train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
-
-    # open up a game state to communicate with emulator
-    game_state = game.GameState()
-
-    # store the previous observations in replay memory
-    D = deque()
-
-    # printing
-    a_file = open(out_put_path  + "/readout.txt", 'w')
-    h_file = open(out_put_path  + "/hidden.txt", 'w')
-
-
-    # get the first state by doing nothing and preprocess the image to 80x80x4
-    do_nothing = np.zeros(ACTIONS)
-    do_nothing[0] = 1
-    x_t, r_0, terminal = game_state.frame_step(do_nothing)
-    x_t = cv2.cvtColor(cv2.resize(x_t, (80, 80)), cv2.COLOR_BGR2GRAY)
-    ret, x_t = cv2.threshold(x_t,1,255,cv2.THRESH_BINARY)
-    s_t = np.stack((x_t, x_t, x_t, x_t), axis = 2)
-
-    # saving and loading networks
-    saver = tf.train.Saver()
-    sess.run(tf.initialize_all_variables())
-    checkpoint = tf.train.get_checkpoint_state(store_network_path)
-    
-    #saver.restore(sess, "new_networks/pong-dqn-"+str(pretrain_number))    
+def check_load_status(checkpoint,saver,sess):
     
     if checkpoint and checkpoint.model_checkpoint_path:
         saver.restore(sess, checkpoint.model_checkpoint_path)
@@ -110,6 +75,47 @@ def trainNetwork(s, readout,sess,merged,writer):
     print "Press any key and Enter to continue:"
     raw_input()
 
+def trainNetwork(s, readout,sess,merged,writer):
+
+    
+    # define the cost function
+    a = tf.placeholder("float", [None, ACTIONS])
+    y = tf.placeholder("float", [None])
+    readout_action = tf.reduce_sum(tf.mul(readout, a), reduction_indices = 1)
+    cost = tf.reduce_mean(tf.square(y - readout_action))
+    train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
+
+#    # open up a game state to communicate with emulator
+#    game_state = game.GameState()
+
+    env_state=env.environment("pong")
+
+    # store the previous observations in replay memory
+    D = deque()
+
+    # printing
+    a_file = open(out_put_path  + "/readout.txt", 'w')
+    h_file = open(out_put_path  + "/hidden.txt", 'w')
+
+
+    # get the first state by doing nothing and preprocess the image to 80x80x4
+    
+    x_t, r_0, terminal = env_state.random_action()    
+    x_t = cv2.cvtColor(cv2.resize(x_t, (80, 80)), cv2.COLOR_BGR2GRAY)
+    ret, x_t = cv2.threshold(x_t,1,255,cv2.THRESH_BINARY)
+    s_t = np.stack((x_t, x_t, x_t, x_t), axis = 2)
+
+    # saving and loading networks
+    saver = tf.train.Saver()
+    sess.run(tf.initialize_all_variables())
+    checkpoint = tf.train.get_checkpoint_state(store_network_path)
+    
+    #saver.restore(sess, "new_networks/pong-dqn-"+str(pretrain_number))   
+    
+    check_load_status(checkpoint,saver,sess)
+    
+
+
     epsilon = INITIAL_EPSILON
     t = 0
     total_score=0
@@ -118,27 +124,15 @@ def trainNetwork(s, readout,sess,merged,writer):
         # choose an action epsilon greedily
         readout_t = readout.eval(feed_dict = {s : [s_t]})[0]
         
-        
-
-        a_t = np.zeros([ACTIONS])
-        action_index = 0
-        if random.random() <= epsilon or t <= OBSERVE:
-            action_index = random.randrange(ACTIONS)
-            a_t[action_index] = 1
-        else:
-            action_index = np.argmax(readout_t)
-            a_t[action_index] = 1
-
+        a_t,action_index=env_state.pick_action(epsilon,readout_t)
         # scale down epsilon
         if epsilon > FINAL_EPSILON and t > OBSERVE:
             epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / EXPLORE
 
         for i in range(0, K):
             # run the selected action and observe next state and reward
-            x_t1_col, r_t, terminal = game_state.frame_step(a_t)
-            x_t1 = cv2.cvtColor(cv2.resize(x_t1_col, (80, 80)), cv2.COLOR_BGR2GRAY)
-            ret, x_t1 = cv2.threshold(x_t1,1,255,cv2.THRESH_BINARY)
-            x_t1 = np.reshape(x_t1, (80, 80, 1))
+            x_t1_col, r_t, terminal = env_state.run_pick_action(a_t)
+            x_t1 = env_state.preprocess(x_t1_col)
             s_t1 = np.append(x_t1, s_t[:,:,0:3], axis = 2)
 
             # store the transition in D
