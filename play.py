@@ -75,18 +75,12 @@ def check_load_status(checkpoint,saver,sess):
     print "Press any key and Enter to continue:"
     raw_input()
 
-def trainNetwork(s, readout,sess,merged,writer):
+
+
+def trainNetwork(s, readout,sess,merged,writer,brain_net):
 
     
-    # define the cost function
-    a = tf.placeholder("float", [None, ACTIONS])
-    y = tf.placeholder("float", [None])
-    readout_action = tf.reduce_sum(tf.mul(readout, a), reduction_indices = 1)
-    cost = tf.reduce_mean(tf.square(y - readout_action))
-    train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
-
-#    # open up a game state to communicate with emulator
-#    game_state = game.GameState()
+    a,y,train_step=brain_net.cost_function(readout)
 
     env_state=env.environment("pong")
 
@@ -95,8 +89,7 @@ def trainNetwork(s, readout,sess,merged,writer):
 
     # printing
     a_file = open(out_put_path  + "/readout.txt", 'w')
-    h_file = open(out_put_path  + "/hidden.txt", 'w')
-
+    
 
     # get the first state by doing nothing and preprocess the image to 80x80x4
     
@@ -221,7 +214,7 @@ def playGame():
     merged = tf.merge_all_summaries()
     writer = tf.train.SummaryWriter(tensorboard_path, sess.graph)
     
-    trainNetwork(s, readout,sess,merged,writer)
+    trainNetwork(s, readout,sess,merged,writer,brain_net)
 
 def main():
     playGame()

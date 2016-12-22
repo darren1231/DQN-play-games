@@ -62,3 +62,12 @@ class Brain():
     
         return s, readout
     
+    def cost_function(self,readout):
+        # define the cost function
+        a = tf.placeholder("float", [None, self.actions])
+        y = tf.placeholder("float", [None])
+        readout_action = tf.reduce_sum(tf.mul(readout, a), reduction_indices = 1)
+        cost = tf.reduce_mean(tf.square(y - readout_action))
+        train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
+        return a,y,train_step
+        
