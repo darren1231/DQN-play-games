@@ -7,7 +7,7 @@ Created on Sun Nov 20 12:50:51 2016
 
 #!/usr/bin/env python
 
-import tensorflow as tf
+
 import cv2
 import sys
 import datetime
@@ -19,8 +19,16 @@ import numpy as np
 import os
 from collections import deque
 
-import brain as net
+
 import environment as env
+
+"""This is important. You need to initialize your environment before tensorflow."""
+env_state=env.environment("pygame")   
+env_state.refresh_scrren()
+
+
+import tensorflow as tf
+import brain as net
 
 GAME = 'pong' # the name of the game being played for log files
 ACTIONS = 3 # number of valid actions
@@ -82,8 +90,8 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
     
     a,y,train_step=brain_net.cost_function(readout)
 
-    env_state=env.environment("pong")
-
+    
+    
     # store the previous observations in replay memory
     D = deque()
 
@@ -113,9 +121,15 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
     t = 0
     total_score=0
     positive_score=0
+    
+    #envv = gym.make('Catcher-v0')
+    
     while True:
+        #envv.render()
         # choose an action epsilon greedily
         readout_t = readout.eval(feed_dict = {s : [s_t]})[0]
+        
+        env_state.refresh_scrren()  
         
         a_t,action_index=env_state.pick_action(epsilon,readout_t)
         # scale down epsilon
@@ -124,7 +138,7 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
 
         for i in range(0, K):
             # run the selected action and observe next state and reward
-            x_t1_col, r_t, terminal = env_state.run_pick_action(a_t)
+            x_t1_col, r_t, terminal = env_state.run_pick_action(action_index)
             x_t1 = env_state.preprocess(x_t1_col)
             s_t1 = np.append(x_t1, s_t[:,:,0:3], axis = 2)
 
@@ -133,6 +147,9 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
             if len(D) > REPLAY_MEMORY:
                 D.popleft()
                 
+        if (terminal==True) and (env_state.game_name=="pygame"):
+            env_state.initialization()
+        
         total_score=total_score+r_t;
         if r_t==1:
             positive_score=positive_score+r_t
@@ -196,7 +213,8 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
             state = "train"
         print "TIMESTEP:", t+pretrain_number, "/ ACTION:", action_index, "/ REWARD:", r_t, "/ Q_MAX: %e" % np.max(readout_t),'  time:(H,M,S):' \
         + sencond2time((datetime.datetime.now()-start).seconds)
-        print 'Total score:',total_score,' Positive_score:',positive_score,'   up:',readout_t[0],'    down:',readout_t[1],'  no:',readout_t[2]
+        print 'Total score:',total_score,' Positive_score:',positive_score,"Epsilon:",epsilon
+        #print 'Total score:',total_score,' Positive_score:',positive_score,'   up:',readout_t[0],'    down:',readout_t[1],'  no:',readout_t[2]
        
         # write info to files
         
@@ -206,9 +224,10 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
             #cv2.imwrite("logs_pong/frame" + str(t) + ".png", x_t1)
         
 
-def playGame():
+def playGame():    
+    
     sess = tf.InteractiveSession()
-    brain_net = net.Brain(3)
+    brain_net = net.Brain(env_state.action_number)
     s, readout = brain_net.createNetwork()
 
     merged = tf.merge_all_summaries()
