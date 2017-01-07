@@ -4,19 +4,23 @@ Created on Tue Dec 20 13:22:58 2016
 
 @author: darren
 """
+from __future__ import print_function
 import random
 import sys
 import cv2
 import numpy as np
 sys.path.append("Wrapped Game Code/")
-import pong_fun as game# whichever is imported "as game" will be used
+
+
 import gym
 import gym_ple
+
 
 class environment():
     def __init__(self,game_name):
         if game_name=="pong":
             # open up a game state to communicate with emulator
+            import pong_fun as game
             self.game_name="pong"
             self.game_state = game.GameState()
             self.action_number=3
@@ -26,9 +30,16 @@ class environment():
             self.game_state = gym.make('FlappyBird-v0')
             self.action_number=self.game_state.action_space.n
             
+        if game_name=="bird_black":
+            # open up a game state to communicate with emulator
+            import wrapped_flappy_bird as game
+            self.game_name="bird_black"
+            self.game_state = game.GameState()
+            self.action_number=2
+            
     def random_action(self):
         # open up a game state to communicate with emulator
-        if self.game_name=="pong":
+        if self.game_name=="pong" or self.game_name=="bird_black":
             do_nothing = np.zeros(self.action_number)
             do_nothing[0] = 1
             x_t, r_0, terminal = self.game_state.frame_step(do_nothing)
@@ -39,14 +50,20 @@ class environment():
             return next_state,reward,done
             
     def run_pick_action(self,action_index):
-        if self.game_name=="pong":
+        if self.game_name=="pong" or self.game_name=="bird_black":
             a_t = np.zeros([self.action_number])
             a_t[action_index] = 1
             x_t1_col, r_t, terminal = self.game_state.frame_step(a_t)
+            
+            if r_t==1:
+                r_t=0
+                
             return x_t1_col, r_t, terminal
         
         if self.game_name=="pygame":
             next_state,reward,done,_ =self.game_state.step(action_index)
+            if reward==0:
+                reward=0.1
             #self.game_state.render()
             
             return next_state,reward,done
@@ -69,6 +86,7 @@ class environment():
         x_t1 = cv2.cvtColor(cv2.resize(x_t1_col, (80, 80)), cv2.COLOR_BGR2GRAY)
         ret, x_t1 = cv2.threshold(x_t1,1,255,cv2.THRESH_BINARY)
         x_t1 = np.reshape(x_t1, (80, 80, 1))
+        
         return x_t1
         
     def refresh_scrren(self):

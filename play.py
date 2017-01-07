@@ -11,8 +11,8 @@ Created on Sun Nov 20 12:50:51 2016
 import cv2
 import sys
 import datetime
-sys.path.append("Wrapped Game Code/")
-import pong_fun as game# whichever is imported "as game" will be used
+#sys.path.append("Wrapped Game Code/")
+#import pong_fun as game# whichever is imported "as game" will be used
 #import tetris_fun
 import random
 import numpy as np
@@ -23,8 +23,8 @@ from collections import deque
 import environment as env
 
 """This is important. You need to initialize your environment before tensorflow."""
-env_state=env.environment("pygame")   
-env_state.refresh_scrren()
+env_state=env.environment("bird_black")   
+#env_state.refresh_scrren()
 
 
 import tensorflow as tf
@@ -33,11 +33,11 @@ import brain as net
 GAME = 'pong' # the name of the game being played for log files
 ACTIONS = 3 # number of valid actions
 GAMMA = 0.99 # decay rate of past observations
-OBSERVE = 500. # timesteps to observe before training
-EXPLORE = 500. # frames over which to anneal epsilon
-FINAL_EPSILON = 0.05 # final value of epsilon
-INITIAL_EPSILON = 1.0 # starting value of epsilon
-REPLAY_MEMORY = 5000 # number of previous transitions to remember
+OBSERVE = 1000. # timesteps to observe before training
+EXPLORE = 2000000 # frames over which to anneal epsilon
+FINAL_EPSILON = 0.0001 # final value of epsilon
+INITIAL_EPSILON = 0.0001# starting value of epsilon
+REPLAY_MEMORY = 50000 # number of previous transitions to remember
 BATCH = 32 # size of minibatch
 K = 1 # only select an action every Kth frame, repeat prev for others
 
@@ -129,7 +129,7 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
         # choose an action epsilon greedily
         readout_t = readout.eval(feed_dict = {s : [s_t]})[0]
         
-        env_state.refresh_scrren()  
+        #env_state.refresh_scrren()  
         
         a_t,action_index=env_state.pick_action(epsilon,readout_t)
         # scale down epsilon
@@ -150,7 +150,8 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
         if (terminal==True) and (env_state.game_name=="pygame"):
             env_state.initialization()
         
-        total_score=total_score+r_t;
+        if r_t==1 or r_t==-1:
+            total_score=total_score+r_t;
         if r_t==1:
             positive_score=positive_score+r_t
 
@@ -187,7 +188,7 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
         t += 1
 
         # save progress every 10000 iterations
-        if t % 1000 == 0:
+        if t % 10000 == 0:
             saver.save(sess, store_network_path + GAME + '-dqn', global_step = t+pretrain_number)
             
             #saver.save(sess, 'new_networks/' + GAME + '-dqn', global_step = t)
@@ -205,12 +206,12 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
 
         # print info
         state = ""
-        if t <= OBSERVE:
-            state = "observe"
-        elif t > OBSERVE and t <= OBSERVE + EXPLORE:
-            state = "explore"
-        else:
-            state = "train"
+#        if t <= OBSERVE:
+#            state = "observe"
+#        elif t > OBSERVE and t <= OBSERVE + EXPLORE:
+#            state = "explore"
+#        else:
+#            state = "train"
         print "TIMESTEP:", t+pretrain_number, "/ ACTION:", action_index, "/ REWARD:", r_t, "/ Q_MAX: %e" % np.max(readout_t),'  time:(H,M,S):' \
         + sencond2time((datetime.datetime.now()-start).seconds)
         print 'Total score:',total_score,' Positive_score:',positive_score,"Epsilon:",epsilon
