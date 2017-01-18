@@ -70,4 +70,5 @@ class Brain():
         cost = tf.reduce_mean(tf.square(y - readout_action))
         train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
         return a,y,train_step
-        
+    
+    
