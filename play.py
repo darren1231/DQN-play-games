@@ -30,16 +30,18 @@ env_state=env.environment("bird_black")
 import tensorflow as tf
 import brain as net
 
-GAME = 'pong' # the name of the game being played for log files
-ACTIONS = 3 # number of valid actions
+GAME = 'bird' # the name of the game being played for log files
+ACTIONS = 2 # number of valid actions
 GAMMA = 0.99 # decay rate of past observations
-OBSERVE = 1000. # timesteps to observe before training
-EXPLORE = 2000000 # frames over which to anneal epsilon
+OBSERVE = 100000. # timesteps to observe before training
+EXPLORE = 2000000. # frames over which to anneal epsilon
 FINAL_EPSILON = 0.0001 # final value of epsilon
-INITIAL_EPSILON = 0.0001# starting value of epsilon
+INITIAL_EPSILON = 0.0001 # starting value of epsilon
 REPLAY_MEMORY = 50000 # number of previous transitions to remember
 BATCH = 32 # size of minibatch
-K = 1 # only select an action every Kth frame, repeat prev for others
+FRAME_PER_ACTION = 1
+K=1
+
 
 ######################################################################
 start = datetime.datetime.now()
@@ -97,14 +99,16 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
 
     # printing
     a_file = open(out_put_path  + "/readout.txt", 'w')
-    
+    e_file = open(out_put_path  + "/episode.txt", 'w')
 
     # get the first state by doing nothing and preprocess the image to 80x80x4
     
     x_t, r_0, terminal = env_state.random_action()    
+    last_observation=x_t
     x_t = cv2.cvtColor(cv2.resize(x_t, (80, 80)), cv2.COLOR_BGR2GRAY)
     ret, x_t = cv2.threshold(x_t,1,255,cv2.THRESH_BINARY)
     s_t = np.stack((x_t, x_t, x_t, x_t), axis = 2)
+    
 
     # saving and loading networks
     saver = tf.train.Saver()
@@ -121,6 +125,8 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
     t = 0
     total_score=0
     positive_score=0
+    episode_score=0
+    episode=0
     
     #envv = gym.make('Catcher-v0')
     
@@ -138,20 +144,35 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
 
         for i in range(0, K):
             # run the selected action and observe next state and reward
+            
             x_t1_col, r_t, terminal = env_state.run_pick_action(action_index)
+#            x_t1_col = np.maximum(x_t1_col,last_observation)
+#            last_observation=x_t1_col
             x_t1 = env_state.preprocess(x_t1_col)
             s_t1 = np.append(x_t1, s_t[:,:,0:3], axis = 2)
 
+#            # without pass reward            
+#            if r_t==0.1:
+#                train_r_t=0
+#            else:
+#                train_r_t=r_t
+                
             # store the transition in D
             D.append((s_t, a_t, r_t, s_t1, terminal))
             if len(D) > REPLAY_MEMORY:
                 D.popleft()
                 
-        if (terminal==True) and (env_state.game_name=="pygame"):
+        if terminal==True:
+            e_file.write(str(episode)+','+str(episode_score)+"\n")
+            episode_score=0
+            episode+=1
+            
+        if (terminal==True) and (env_state.game_name=="gym"):
             env_state.initialization()
         
         if r_t==1 or r_t==-1:
-            total_score=total_score+r_t;
+            total_score=total_score+r_t
+            episode_score=episode_score+r_t
         if r_t==1:
             positive_score=positive_score+r_t
 
@@ -215,6 +236,7 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
         print "TIMESTEP:", t+pretrain_number, "/ ACTION:", action_index, "/ REWARD:", r_t, "/ Q_MAX: %e" % np.max(readout_t),'  time:(H,M,S):' \
         + sencond2time((datetime.datetime.now()-start).seconds)
         print 'Total score:',total_score,' Positive_score:',positive_score,"Epsilon:",epsilon
+        print "Episode:",episode,"     score",episode_score
         #print 'Total score:',total_score,' Positive_score:',positive_score,'   up:',readout_t[0],'    down:',readout_t[1],'  no:',readout_t[2]
        
         # write info to files
