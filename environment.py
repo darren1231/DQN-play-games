@@ -10,10 +10,11 @@ import sys
 import cv2
 import numpy as np
 sys.path.append("Wrapped Game Code/")
+import os
+os.environ["SDL_VIDEODRIVER"] = "dummy"
 
-
-import gym
-import gym_ple
+# import gym
+# import gym_ple
 
 
 class environment():

@@ -1,5 +1,5 @@
-import tensorflow as tf
-
+# import tensorflow as tf
+import tensorflow.compat.v1 as tf
 class Brain():
     def __init__(self,actions):
         self.actions=actions
@@ -58,15 +58,16 @@ class Brain():
         readout = tf.matmul(h_fc1, W_fc2) + b_fc2
     
         Q_max=tf.reduce_max(readout)
-        tf.scalar_summary('Q_max', Q_max)
-    
+        # tf.scalar_summary('Q_max', Q_max)
+        tf.summary.scalar('Q_max', Q_max)
         return s, readout
     
     def cost_function(self,readout):
         # define the cost function
         a = tf.placeholder("float", [None, self.actions])
         y = tf.placeholder("float", [None])
-        readout_action = tf.reduce_sum(tf.mul(readout, a), reduction_indices = 1)
+        # readout_action = tf.reduce_sum(tf.mul(readout, a), reduction_indices = 1)
+        readout_action = tf.reduce_sum(tf.multiply(readout, a), reduction_indices = 1)
         cost = tf.reduce_mean(tf.square(y - readout_action))
         train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
         return a,y,train_step

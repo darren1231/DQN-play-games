@@ -9,7 +9,7 @@ from sys import exit
 import random
 import pygame.surfarray as surfarray
 import matplotlib.pyplot as plt
-
+os.environ["SDL_VIDEODRIVER"] = "dummy"
 position = 5, 325
 os.environ['SDL_VIDEO_WINDOW_POS'] = str(position[0]) + "," + str(position[1])
 pygame.init()

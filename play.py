@@ -18,19 +18,19 @@ import random
 import numpy as np
 import os
 from collections import deque
-
-
+import tensorflow.compat.v1 as tf
+tf.disable_eager_execution()
 import environment as env
 
 """This is important. You need to initialize your environment before tensorflow."""
-env_state=env.environment("bird_black")   
+env_state=env.environment("pong")   
 #env_state.refresh_scrren()
 
 
-import tensorflow as tf
+# import tensorflow as tf
 import brain as net
 
-GAME = 'bird' # the name of the game being played for log files
+GAME = 'pong' # the name of the game being played for log files
 ACTIONS = 2 # number of valid actions
 GAMMA = 0.99 # decay rate of past observations
 OBSERVE = 100000. # timesteps to observe before training
@@ -78,12 +78,12 @@ def check_load_status(checkpoint,saver,sess):
     if checkpoint and checkpoint.model_checkpoint_path:
         saver.restore(sess, checkpoint.model_checkpoint_path)
 	#saver.restore(sess, "my_networks/pong-dqn-26000")
-        print "Successfully loaded:", checkpoint.model_checkpoint_path
+        print ("Successfully loaded:", checkpoint.model_checkpoint_path)
     else:
-        print "Could not find old network weights"
+        print ("Could not find old network weights")
     
-    print "Press any key and Enter to continue:"
-    raw_input()
+    print ("Press any key and Enter to continue:")
+    # raw_input()
 
 
 
@@ -112,7 +112,8 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
 
     # saving and loading networks
     saver = tf.train.Saver()
-    sess.run(tf.initialize_all_variables())
+    # sess.run(tf.initialize_all_variables())
+    sess.run(tf.global_variables_initializer())
     checkpoint = tf.train.get_checkpoint_state(store_network_path)
     
     #saver.restore(sess, "new_networks/pong-dqn-"+str(pretrain_number))   
@@ -233,10 +234,10 @@ def trainNetwork(s, readout,sess,merged,writer,brain_net):
 #            state = "explore"
 #        else:
 #            state = "train"
-        print "TIMESTEP:", t+pretrain_number, "/ ACTION:", action_index, "/ REWARD:", r_t, "/ Q_MAX: %e" % np.max(readout_t),'  time:(H,M,S):' \
-        + sencond2time((datetime.datetime.now()-start).seconds)
-        print 'Total score:',total_score,' Positive_score:',positive_score,"Epsilon:",epsilon
-        print "Episode:",episode,"     score",episode_score
+        print ("TIMESTEP:", t+pretrain_number, "/ ACTION:", action_index, "/ REWARD:", r_t, "/ Q_MAX: %e" % np.max(readout_t),'  time:(H,M,S):' \
+        + sencond2time((datetime.datetime.now()-start).seconds))
+        print ('Total score:',total_score,' Positive_score:',positive_score,"Epsilon:",epsilon)
+        print ("Episode:",episode,"     score",episode_score)
         #print 'Total score:',total_score,' Positive_score:',positive_score,'   up:',readout_t[0],'    down:',readout_t[1],'  no:',readout_t[2]
        
         # write info to files
@@ -253,9 +254,10 @@ def playGame():
     brain_net = net.Brain(env_state.action_number)
     s, readout = brain_net.createNetwork()
 
-    merged = tf.merge_all_summaries()
-    writer = tf.train.SummaryWriter(tensorboard_path, sess.graph)
-    
+    # merged = tf.merge_all_summaries()
+    merged = tf.summary.merge_all()
+    # writer = tf.train.SummaryWriter(tensorboard_path, sess.graph)
+    writer = tf.summary.FileWriter(tensorboard_path, sess.graph)
     trainNetwork(s, readout,sess,merged,writer,brain_net)
 
 def main():

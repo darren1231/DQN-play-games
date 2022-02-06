@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import tensorflow as tf
+# import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import cv2
 import sys
 import datetime
@@ -11,6 +12,8 @@ import random
 import numpy as np
 import os
 from collections import deque
+os.environ["SDL_VIDEODRIVER"] = "dummy"
+tf.disable_eager_execution()
 
 GAME = 'pong' # the name of the game being played for log files
 ACTIONS = 3 # number of valid actions
@@ -19,7 +22,7 @@ OBSERVE = 500. # timesteps to observe before training
 EXPLORE = 500. # frames over which to anneal epsilon
 FINAL_EPSILON = 0.05 # final value of epsilon
 INITIAL_EPSILON = 1.0 # starting value of epsilon
-REPLAY_MEMORY = 100000 # number of previous transitions to remember
+REPLAY_MEMORY = 10000 # number of previous transitions to remember
 BATCH = 32 # size of minibatch
 K = 1 # only select an action every Kth frame, repeat prev for others
 
@@ -40,7 +43,7 @@ pretrain_number=0
 
 ######################################################################
 def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev = 0.01)
+    initial = tf.random.truncated_normal(shape, stddev = 0.01)
     return tf.Variable(initial)
 
 def bias_variable(shape):
@@ -92,7 +95,8 @@ def createNetwork():
     readout = tf.matmul(h_fc1, W_fc2) + b_fc2
 
     Q_max=tf.reduce_max(readout)
-    tf.scalar_summary('Q_max', Q_max)
+    # tf.scalar_summary('Q_max', Q_max)
+    tf.summary.scalar('Q_max', Q_max)
 
     return s, readout, h_fc1
 
@@ -114,7 +118,8 @@ def trainNetwork(s, readout, h_fc1, sess,merged,writer):
     # define the cost function
     a = tf.placeholder("float", [None, ACTIONS])
     y = tf.placeholder("float", [None])
-    readout_action = tf.reduce_sum(tf.mul(readout, a), reduction_indices = 1)
+    # readout_action = tf.reduce_sum(tf.mul(readout, a), reduction_indices = 1)
+    readout_action = tf.reduce_sum(tf.multiply(readout, a), reduction_indices = 1)
     cost = tf.reduce_mean(tf.square(y - readout_action))
     train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
 
@@ -147,12 +152,12 @@ def trainNetwork(s, readout, h_fc1, sess,merged,writer):
     if checkpoint and checkpoint.model_checkpoint_path:
         saver.restore(sess, checkpoint.model_checkpoint_path)
 	#saver.restore(sess, "my_networks/pong-dqn-26000")
-        print "Successfully loaded:", checkpoint.model_checkpoint_path
+        print ("Successfully loaded:", checkpoint.model_checkpoint_path)
     else:
-        print "Could not find old network weights"
+        print ("Could not find old network weights")
     
-    print "Press any key and Enter to continue:"
-    raw_input()
+    print ("Press any key and Enter to continue:")
+    # raw_input()
 
     epsilon = INITIAL_EPSILON
     t = 0
@@ -248,9 +253,9 @@ def trainNetwork(s, readout, h_fc1, sess,merged,writer):
 
         # print info
         
-        print "TIMESTEP:", t+pretrain_number, "/ ACTION:", action_index, "/ REWARD:", r_t, "/ Q_MAX: %e" % np.max(readout_t),'  time:(H,M,S):' \
-        + sencond2time((datetime.datetime.now()-start).seconds)
-        print 'Total score:',total_score,' Positive_score:',positive_score,'   up:',readout_t[0],'    down:',readout_t[1],'  no:',readout_t[2]
+        print ("TIMESTEP:", t+pretrain_number, "/ ACTION:", action_index, "/ REWARD:", r_t, "/ Q_MAX: %e" % np.max(readout_t),'  time:(H,M,S):' \
+        + sencond2time((datetime.datetime.now()-start).seconds))
+        print ('Total score:',total_score,' Positive_score:',positive_score,'   up:',readout_t[0],'    down:',readout_t[1],'  no:',readout_t[2])
        
         # write info to files
         
@@ -262,12 +267,14 @@ def trainNetwork(s, readout, h_fc1, sess,merged,writer):
 
 def playGame():
     sess = tf.InteractiveSession()
+    # sess = sess=tf.compat.v1.InteractiveSession()
 
     s, readout, h_fc1 = createNetwork()
 
-    merged = tf.merge_all_summaries()
-    writer = tf.train.SummaryWriter(tensorboard_path, sess.graph)
-    
+    # merged = tf.merge_all_summaries()
+    merged = tf.summary.merge_all()
+    # writer = tf.train.SummaryWriter(tensorboard_path, sess.graph)
+    writer = tf.summary.FileWriter(tensorboard_path, sess.graph)
     trainNetwork(s, readout, h_fc1, sess,merged,writer)
 
 def main():
