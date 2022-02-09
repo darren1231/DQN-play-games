@@ -25,7 +25,9 @@ After trainning about 400000 steps,we can show the learning effect with pygame m
 ### Install environment from Anaconda
 * conda create -n pygameenv python=3.6
 * pip install -r requirements.txt
+
 ### Before trainning
 <img src="./gif/start_train.gif"  alt="paper" align=center />
+
 ### After trainning
 <img src="./gif/after_train.gif"  alt="paper" align=center />
